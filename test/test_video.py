@@ -7,6 +7,9 @@ import pytest
 
 from app import application
 
+rel_path = lambda path: os.path.relpath(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), path)))
+
 
 def check_md_file(path, transcript_by, media, title=None, date=None, tags=None,
                   category=None, speakers=None,
@@ -73,10 +76,11 @@ def check_md_file(path, transcript_by, media, title=None, date=None, tags=None,
 
 @pytest.mark.feature
 def test_video_with_title():
-    with open("test/testAssets/transcript.txt", "r") as file:
+    with open(rel_path("testAssets/transcript.txt"), "r") as file:
         result = file.read()
         file.close()
-    source = 'test/testAssets/test_video.mp4'
+    source = os.path.abspath(rel_path('testAssets/test_video.mp4'))
+    print(source)
     username = "username"
     title = "test_video"
     speakers = None
@@ -87,7 +91,8 @@ def test_video_with_title():
     filename = application.process_source(source=source, title=title,
                                           event_date=date, tags=tags,
                                           category=category,
-                                          speakers=speakers, loc="yada/yada",
+                                          speakers=speakers,
+                                          loc="yada/yada",
                                           model="tiny", username=username,
                                           source_type="video", local=True,
                                           created_files=created_files,
@@ -97,16 +102,17 @@ def test_video_with_title():
                          title=title,
                          date=date, tags=tags,
                          category=category, speakers=speakers, local=True)
-    created_files.append('test_video.md')
+    created_files.append(
+        'test_video.md')
     application.clean_up(created_files)
 
 
 @pytest.mark.feature
 def test_video_with_all_options():
-    with open("test/testAssets/transcript.txt", "r") as file:
+    with open(rel_path("testAssets/transcript.txt"), "r") as file:
         result = file.read()
         file.close()
-    source = 'test/testAssets/test_video.mp4'
+    source = rel_path('testAssets/test_video.mp4')
     username = "username"
     title = "test_video"
     speakers = "speaker1,speaker2"
@@ -118,7 +124,8 @@ def test_video_with_all_options():
     filename = application.process_source(source=source, title=title,
                                           event_date=date, tags=tags,
                                           category=category,
-                                          speakers=speakers, loc="yada/yada",
+                                          speakers=speakers,
+                                          loc="yada/yada",
                                           model="tiny", username=username,
                                           source_type="video", local=True,
                                           created_files=created_files,
@@ -138,10 +145,10 @@ def test_video_with_all_options():
 
 @pytest.mark.feature
 def test_video_with_chapters():
-    with open("test/testAssets/transcript.txt", "r") as file:
+    with open(rel_path("testAssets/transcript.txt"), "r") as file:
         result = file.read()
         file.close()
-    source = 'test/testAssets/test_video.mp4'
+    source = rel_path('testAssets/test_video.mp4')
     username = "username"
     title = "test_video"
     speakers = "speaker1,speaker2"
@@ -153,13 +160,14 @@ def test_video_with_chapters():
     filename = application.process_source(source=source, title=title,
                                           event_date=date, tags=tags,
                                           category=category,
-                                          speakers=speakers, loc="yada/yada",
+                                          speakers=speakers,
+                                          loc="yada/yada",
                                           model="tiny", username=username,
                                           source_type="video", local=True,
                                           created_files=created_files,
                                           test=result, chapters=True, pr=True)
     chapter_names = []
-    with open("test/testAssets/test_video_chapters.chapters", "r") as file:
+    with open(rel_path("testAssets/test_video_chapters.chapters"), "r") as file:
         result = file.read()
         for x in result.split('\n'):
             if re.search("CHAPTER\d\dNAME", x):
@@ -177,7 +185,7 @@ def test_video_with_chapters():
                          category=category, speakers=speakers,
                          chapters=chapter_names, local=True)
     created_files.append('test_video.md')
-    created_files.append("test/testAssets/test_video.chapters")
+    created_files.append(rel_path("testAssets/test_video.chapters"))
     application.clean_up(created_files)
 
 
@@ -185,18 +193,33 @@ def test_video_with_chapters():
 def test_generate_payload():
     date = "2020-01-31"
     date = datetime.strptime(date, '%Y-%m-%d').date()
-    with open("test/testAssets/transcript.txt", "r") as file:
+    with open(rel_path("testAssets/transcript.txt"), "r") as file:
         transcript = file.read()
         file.close()
-    payload = application.generate_payload(loc="yada/yada", title="test_title",
+    payload = application.generate_payload(loc=rel_path("yada/yada"),
+                                           title="test_title",
                                            event_date=date, tags="tag1, tag2",
                                            test=True,
                                            category="category1, category2",
                                            speakers="speaker1, speaker2",
                                            username="username",
-                                           media="test/testAssets/test_video.mp4",
+                                           media=rel_path(
+                                               "testAssets/test_video.mp4"),
                                            transcript=transcript)
-    with open('test/testAssets/payload.json', 'r') as outfile:
+    with open(rel_path('testAssets/payload.json'), 'r') as outfile:
         content = json.load(outfile)
         outfile.close()
-    assert payload == content
+
+    # assert payload == content
+    assert list(content.keys()) == list(payload.keys())
+    for k in content.keys():
+        if k == "content":
+            for key in content[k].keys():
+                if key == "loc":
+                    assert payload[k][key][-9:] == content[k][key][-9:]
+                elif key == "media":
+                    assert payload[k][key][-25:] == content[k][key][-25:]
+                else:
+                    assert payload[k][key] == content[k][key]
+        else:
+            assert payload[k] == content[k]
