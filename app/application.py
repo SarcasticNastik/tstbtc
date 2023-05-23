@@ -17,12 +17,13 @@ from dotenv import dotenv_values
 import yt_dlp
 from deepgram import Deepgram
 import mimetypes
+import logging
 
 
 def download_video(url):
     try:
-        print("URL: " + url)
-        print("Downloading video... Please wait.")
+        logging.info("URL: " + url)
+        logging.info("Downloading video... Please wait.")
 
         ydl_opts = {
             'format': '18',
@@ -42,7 +43,7 @@ def download_video(url):
 
         return os.path.abspath("tmp/" + name + '.mp4')
     except Exception as e:
-        print("Error downloading video")
+        logging.error("Error downloading video")
         shutil.rmtree('tmp')
         return
 
@@ -53,7 +54,7 @@ def read_description(prefix):
         with open(prefix + 'videoFile.info.json', 'r') as f:
             info = json.load(f)
         if 'chapters' not in info:
-            print("No chapters found in description")
+            logging.info("No chapters found in description")
             return list_of_chapters
         for index, x in enumerate(info['chapters']):
             name = x['title']
@@ -62,7 +63,7 @@ def read_description(prefix):
 
         return list_of_chapters
     except Exception as e:
-        print("Error reading description")
+        logging.error("Error reading description")
         return []
 
 
@@ -77,20 +78,20 @@ def write_chapters_file(chapter_file: str, chapter_list: list) -> None:
                          f'{current_chapter[2]}\n')
             fo.close()
     except Exception as e:
-        print("Error writing chapter file")
-        print(e)
+        logging.error("Error writing chapter file")
+        logging.error(e)
 
 
 def convert_video_to_mp3(filename):
     try:
         clip = VideoFileClip(filename)
-        print("Converting video to mp3... Please wait.")
-        print(filename[:-4] + ".mp3")
+        logging.info("Converting video to mp3... Please wait.")
+        logging.info(filename[:-4] + ".mp3")
         clip.audio.write_audiofile(filename[:-4] + ".mp3")
         clip.close()
-        print("Converted video to mp3")
+        logging.info("Converted video to mp3")
     except:
-        print("Error converting video to mp3")
+        logging.error("Error converting video to mp3")
         return None
     return filename
 
@@ -130,42 +131,43 @@ def get_playlist_videos(url):
         videos = pytube.Playlist(url)
         return videos
     except Exception as e:
-        print("Error getting playlist videos")
-        print(e)
+        logging.error("Error getting playlist videos")
+        logging.error(e)
         return
 
 
 def get_audio_file(url, title):
-    print("URL: " + url)
-    print("downloading audio file")
+    logging.info("URL: " + url)
+    logging.info("downloading audio file")
     try:
         audio = requests.get(url, stream=True)
         with open("tmp/" + title + ".mp3", "wb") as f:
             total_length = int(audio.headers.get('content-length'))
-            for chunk in progress.bar(audio.iter_content(chunk_size=1024), expected_size=(total_length / 1024) + 1):
+            for chunk in progress.bar(audio.iter_content(chunk_size=1024),
+                                      expected_size=(total_length / 1024) + 1):
                 if chunk:
                     f.write(chunk)
                     f.flush()
         return title + ".mp3"
     except Exception as e:
-        print("Error downloading audio file")
-        print(e)
+        logging.error("Error downloading audio file")
+        logging.error(e)
         return
 
 
 def process_mp3(filename, model):
-    print("Transcribing audio to text using whisper ...")
+    logging.info("Transcribing audio to text using whisper ...")
     try:
         my_model = whisper.load_model(model)
         result = my_model.transcribe(filename)
         data = []
         for x in result["segments"]:
             data.append(tuple((x["start"], x["end"], x["text"])))
-        print("Removed video and audio files")
+        logging.info("Removed video and audio files")
         return data
     except Exception as e:
-        print("Error transcribing audio to text")
-        print(e)
+        logging.error("Error transcribing audio to text")
+        logging.error(e)
         return
 
 
@@ -185,9 +187,12 @@ def combine_chapter(chapters, transcript):
         # chapters index, start time, name
         # transcript start time, end time, text
 
-        while chapters_pointer < len(chapters) and transcript_pointer < len(transcript):
-            if chapters[chapters_pointer][1] <= transcript[transcript_pointer][0]:
-                result = result + "\n\n## " + chapters[chapters_pointer][2] + "\n\n"
+        while chapters_pointer < len(chapters) and transcript_pointer < len(
+                transcript):
+            if chapters[chapters_pointer][1] <= transcript[transcript_pointer][
+                0]:
+                result = result + "\n\n## " + chapters[chapters_pointer][
+                    2] + "\n\n"
                 chapters_pointer += 1
             else:
                 result = result + transcript[transcript_pointer][2]
@@ -202,8 +207,8 @@ def combine_chapter(chapters, transcript):
 
         return result
     except Exception as e:
-        print("Error combining chapters")
-        print(e)
+        logging.error("Error combining chapters")
+        logging.error(e)
 
 
 def combine_deepgram_chapters_with_diarization(deepgram_data, chapters):
@@ -211,7 +216,8 @@ def combine_deepgram_chapters_with_diarization(deepgram_data, chapters):
         para = ""
         string = ""
         curr_speaker = None
-        words = deepgram_data["results"]["channels"][0]["alternatives"][0]["words"]
+        words = deepgram_data["results"]["channels"][0]["alternatives"][0][
+            "words"]
         words_pointer = 0
         chapters_pointer = 0
         while chapters_pointer < len(chapters) and words_pointer < len(words):
@@ -252,8 +258,8 @@ def combine_deepgram_chapters_with_diarization(deepgram_data, chapters):
         string = string + para
         return string
     except Exception as e:
-        print("Error combining deepgram chapters")
-        print(e)
+        logging.error("Error combining deepgram chapters")
+        logging.error(e)
 
 
 def get_deepgram_transcript(deepgram_data, diarize):
@@ -261,7 +267,8 @@ def get_deepgram_transcript(deepgram_data, diarize):
         para = ""
         string = ""
         curr_speaker = None
-        for word in deepgram_data["results"]["channels"][0]["alternatives"][0]["words"]:
+        for word in deepgram_data["results"]["channels"][0]["alternatives"][0][
+            "words"]:
             if word["speaker"] != curr_speaker:
                 if para != "":
                     para = para.strip(" ")
@@ -276,7 +283,8 @@ def get_deepgram_transcript(deepgram_data, diarize):
         string = string + para
         return string
     else:
-        return deepgram_data["results"]["channels"][0]["alternatives"][0]["transcript"]
+        return deepgram_data["results"]["channels"][0]["alternatives"][0][
+            "transcript"]
 
 
 def get_deepgram_summary(deepgram_data):
@@ -287,12 +295,12 @@ def get_deepgram_summary(deepgram_data):
             summary = summary + " " + x["summary"]
         return summary.strip(" ")
     except Exception as e:
-        print("Error getting summary")
-        print(e)
+        logging.error("Error getting summary")
+        logging.error(e)
 
 
 def process_mp3_deepgram(filename, summarize, diarize):
-    print("Transcribing audio to text using deepgram...")
+    logging.info("Transcribing audio to text using deepgram...")
     try:
         config = dotenv_values(".env")
         dg_client = Deepgram(config["DEEPGRAM_API_KEY"])
@@ -300,15 +308,16 @@ def process_mp3_deepgram(filename, summarize, diarize):
         with open(filename, "rb") as audio:
             mimeType = mimetypes.MimeTypes().guess_type(filename)[0]
             source = {'buffer': audio, 'mimetype': mimeType}
-            response = dg_client.transcription.sync_prerecorded(source, {'punctuate': True, 'speaker_labels': True,
-                                                                         'diarize': diarize, 'smart_formatting': True,
-                                                                         'summarize': summarize,
-                                                                         'model': 'whisper-large'})
+            response = dg_client.transcription.sync_prerecorded(source, {
+                'punctuate': True, 'speaker_labels': True,
+                'diarize': diarize, 'smart_formatting': True,
+                'summarize': summarize,
+                'model': 'whisper-large'})
             audio.close()
         return response
     except Exception as e:
-        print("Error transcribing audio to text")
-        print(e)
+        logging.error("Error transcribing audio to text")
+        logging.error(e)
         return
 
 
@@ -322,19 +331,20 @@ def create_transcript(data):
 
 def initialize():
     try:
-        print('''
+        logging.info('''
         This tool will convert Youtube videos to mp3 files and then transcribe them to text using Whisper.
         ''')
         # FFMPEG installed on first use.
-        print("Initializing FFMPEG...")
+        logging.debug("Initializing FFMPEG...")
         static_ffmpeg.add_paths()
-        print("Initialized FFMPEG")
+        logging.debug("Initialized FFMPEG")
     except Exception as e:
-        print("Error initializing")
-        print(e)
+        logging.error("Error initializing")
+        logging.error(e)
 
 
-def write_to_file(result, loc, url, title, date, tags, category, speakers, video_title, username, local, test, pr,
+def write_to_file(result, loc, url, title, date, tags, category, speakers,
+                  video_title, username, local, test, pr,
                   summary):
     try:
         transcribed_text = result
@@ -383,34 +393,42 @@ def write_to_file(result, loc, url, title, date, tags, category, speakers, video
         if local:
             url = None
         if not pr:
-            generate_payload(loc=loc, title=file_title, transcript=transcribed_text, media=url, tags=tags,
-                             category=category, speakers=speakers, username=username, event_date=date, test=test)
+            generate_payload(loc=loc, title=file_title,
+                             transcript=transcribed_text, media=url, tags=tags,
+                             category=category, speakers=speakers,
+                             username=username, event_date=date, test=test)
         return file_name_with_ext
     except Exception as e:
-        print("Error writing to file")
-        print(e)
+        logging.error("Error writing to file")
+        logging.error(e)
 
 
-def get_md_file_path(result, loc, video, title, event_date, tags, category, speakers, username, local, video_title,
+def get_md_file_path(result, loc, video, title, event_date, tags, category,
+                     speakers, username, local, video_title,
                      test, pr, summary=""):
     try:
-        print("writing .md file")
-        file_name_with_ext = write_to_file(result, loc, video, title, event_date, tags, category, speakers, video_title,
+        logging.info("writing .md file")
+        file_name_with_ext = write_to_file(result, loc, video, title,
+                                           event_date, tags, category, speakers,
+                                           video_title,
                                            username, local, test, pr, summary)
-        print("wrote .md file")
+        logging.info("wrote .md file")
 
         absolute_path = os.path.abspath(file_name_with_ext)
         return absolute_path
     except Exception as e:
-        print("Error getting markdown file path")
-        print(e)
+        logging.error("Error getting markdown file path")
+        logging.error(e)
 
 
 def create_pr(absolute_path, loc, username, curr_time, title):
     branch_name = loc.replace("/", "-")
-    subprocess.call(['bash', 'initializeRepo.sh', absolute_path, loc, branch_name, username, curr_time])
-    subprocess.call(['bash', 'github.sh', branch_name, username, curr_time, title])
-    print("Please check the PR for the transcription.")
+    subprocess.call(
+        ['bash', 'initializeRepo.sh', absolute_path, loc, branch_name, username,
+         curr_time])
+    subprocess.call(
+        ['bash', 'github.sh', branch_name, username, curr_time, title])
+    logging.info("Please check the PR for the transcription.")
 
 
 def get_username():
@@ -420,15 +438,15 @@ def get_username():
                 username = f.read()
                 f.close()
         else:
-            print("What is your github username?")
+            logging.info("What is your github username?")
             username = input()
             with open(".username", "w") as f:
                 f.write(username)
                 f.close()
         return username
     except Exception as e:
-        print("Error getting username")
-        print(e)
+        logging.error("Error getting username")
+        logging.error(e)
 
 
 def check_source_type(source):
@@ -447,15 +465,16 @@ def check_source_type(source):
         return None
 
 
-def process_audio(source, title, event_date, tags, category, speakers, loc, model, username, local,
+def process_audio(source, title, event_date, tags, category, speakers, loc,
+                  model, username, local,
                   created_files, test, pr, deepgram, summarize, diarize):
     try:
-        print("audio file detected")
+        logging.info("audio file detected")
         curr_time = str(round(time.time() * 1000))
 
         # check if title is supplied if not, return None
         if title is None:
-            print("Error: Please supply a title for the audio file")
+            logging.error("Error: Please supply a title for the audio file")
             return None
         # process audio file
         summary = None
@@ -463,15 +482,15 @@ def process_audio(source, title, event_date, tags, category, speakers, loc, mode
         if not local:
             filename = get_audio_file(url=source, title=title)
             abs_path = os.path.abspath(path="tmp/" + filename)
-            print("filename", filename)
-            print("abs_path", abs_path)
+            logging.info("filename", filename)
+            logging.info("abs_path", abs_path)
             created_files.append(abs_path)
         else:
             filename = source.split("/")[-1]
             abs_path = source
-        print("processing audio file", abs_path)
+        logging.info("processing audio file", abs_path)
         if filename is None:
-            print("File not found")
+            logging.info("File not found")
             return
         if filename.endswith('wav'):
             initialize()
@@ -481,56 +500,69 @@ def process_audio(source, title, event_date, tags, category, speakers, loc, mode
             result = test
         else:
             if deepgram or summarize:
-                deepgram_resp = process_mp3_deepgram(filename=abs_path, summarize=summarize, diarize=diarize)
-                result = get_deepgram_transcript(deepgram_data=deepgram_resp, diarize=diarize)
+                deepgram_resp = process_mp3_deepgram(filename=abs_path,
+                                                     summarize=summarize,
+                                                     diarize=diarize)
+                result = get_deepgram_transcript(deepgram_data=deepgram_resp,
+                                                 diarize=diarize)
                 if summarize:
                     summary = get_deepgram_summary(deepgram_data=deepgram_resp)
             if not deepgram:
                 result = process_mp3(abs_path, model)
                 result = create_transcript(result)
-        absolute_path = get_md_file_path(result=result, loc=loc, video=source, title=title, event_date=event_date,
-                                         tags=tags, category=category, speakers=speakers, username=username,
-                                         local=local, video_title=filename[:-4], test=test, pr=pr, summary=summary)
+        absolute_path = get_md_file_path(result=result, loc=loc, video=source,
+                                         title=title, event_date=event_date,
+                                         tags=tags, category=category,
+                                         speakers=speakers, username=username,
+                                         local=local, video_title=filename[:-4],
+                                         test=test, pr=pr, summary=summary)
 
         created_files.append(absolute_path)
         if pr:
-            create_pr(absolute_path=absolute_path, loc=loc, username=username, curr_time=curr_time, title=title)
+            create_pr(absolute_path=absolute_path, loc=loc, username=username,
+                      curr_time=curr_time, title=title)
         else:
             created_files.append(absolute_path)
         return absolute_path
     except Exception as e:
-        print("Error processing audio file")
-        print(e)
+        logging.error("Error processing audio file")
+        logging.error(e)
 
 
-def process_videos(source, title, event_date, tags, category, speakers, loc, model, username, created_files,
+def process_videos(source, title, event_date, tags, category, speakers, loc,
+                   model, username, created_files,
                    chapters, pr, deepgram, summarize, diarize):
     try:
-        print("Playlist detected")
+        logging.info("Playlist detected")
         if source.startswith("http") or source.startswith("www"):
             parsed_url = urlparse(source)
             source = parse_qs(parsed_url.query)["list"][0]
         url = "https://www.youtube.com/playlist?list=" + source
-        print(url)
+        logging.info(url)
         videos = get_playlist_videos(url)
         if videos is None:
-            print("Playlist is empty")
+            logging.info("Playlist is empty")
             return
 
         selected_model = model + '.en'
         filename = ""
 
         for video in videos:
-            filename = process_video(video=video, title=title, event_date=event_date, tags=tags, category=category,
-                                     speakers=speakers, loc=loc, model=selected_model, username=username,
-                                     pr=pr, created_files=created_files, chapters=chapters, test=False, diarize=diarize,
+            filename = process_video(video=video, title=title,
+                                     event_date=event_date, tags=tags,
+                                     category=category,
+                                     speakers=speakers, loc=loc,
+                                     model=selected_model, username=username,
+                                     pr=pr, created_files=created_files,
+                                     chapters=chapters, test=False,
+                                     diarize=diarize,
                                      deepgram=deepgram, summarize=summarize)
             if filename is None:
                 return None
         return filename
     except Exception as e:
-        print("Error processing playlist")
-        print(e)
+        logging.error("Error processing playlist")
+        logging.error(e)
 
 
 def combine_deepgram_with_chapters(deepgram_data, chapters):
@@ -538,12 +570,14 @@ def combine_deepgram_with_chapters(deepgram_data, chapters):
         chapters_pointer = 0
         words_pointer = 0
         result = ""
-        words = deepgram_data["results"]["channels"][0]["alternatives"][0]["words"]
+        words = deepgram_data["results"]["channels"][0]["alternatives"][0][
+            "words"]
         # chapters index, start time, name
         # transcript start time, end time, text
         while chapters_pointer < len(chapters) and words_pointer < len(words):
             if chapters[chapters_pointer][1] <= words[words_pointer]["end"]:
-                result = result + "\n\n## " + chapters[chapters_pointer][2] + "\n\n"
+                result = result + "\n\n## " + chapters[chapters_pointer][
+                    2] + "\n\n"
                 chapters_pointer += 1
             else:
                 result = result + words[words_pointer]["punctuated_word"] + " "
@@ -559,12 +593,14 @@ def combine_deepgram_with_chapters(deepgram_data, chapters):
 
         return result
     except Exception as e:
-        print("Error combining deepgram with chapters")
-        print(e)
+        logging.error("Error combining deepgram with chapters")
+        logging.error(e)
 
 
-def process_video(video, title, event_date, tags, category, speakers, loc, model, username, created_files,
-                  chapters, test, pr, local=False, deepgram=False, summarize=False, diarize=False):
+def process_video(video, title, event_date, tags, category, speakers, loc,
+                  model, username, created_files,
+                  chapters, test, pr, local=False, deepgram=False,
+                  summarize=False, diarize=False):
     try:
         curr_time = str(round(time.time() * 1000))
         if not local:
@@ -574,21 +610,19 @@ def process_video(video, title, event_date, tags, category, speakers, loc, model
             elif "youtu.be" in video or "embed" in video:
                 video = video.split("/")[-1]
             video = "https://www.youtube.com/watch?v=" + video
-            print("Transcribing video: " + video)
+            logging.info("Transcribing video: " + video)
             if event_date is None:
                 event_date = get_date(video)
             abs_path = download_video(url=video)
             if abs_path is None:
-                print("File not found")
+                logging.info("File not found")
                 return None
             created_files.append(abs_path)
             filename = abs_path.split("/")[-1]
         else:
             filename = video.split("/")[-1]
-            print("Transcribing video: " + filename)
+            logging.info("Transcribing video: " + filename)
             abs_path = video
-        print()
-        print()
 
         initialize()
         summary = None
@@ -600,23 +634,28 @@ def process_video(video, title, event_date, tags, category, speakers, loc, model
             chapters = read_description("test/testAssets/")
         convert_video_to_mp3(abs_path[:-4] + '.mp4')
         if deepgram or summarize:
-            deepgram_data = process_mp3_deepgram(abs_path[:-4] + ".mp3", summarize=summarize, diarize=diarize)
-            result = get_deepgram_transcript(deepgram_data=deepgram_data, diarize=diarize)
+            deepgram_data = process_mp3_deepgram(abs_path[:-4] + ".mp3",
+                                                 summarize=summarize,
+                                                 diarize=diarize)
+            result = get_deepgram_transcript(deepgram_data=deepgram_data,
+                                             diarize=diarize)
             if summarize:
-                print("Summarizing")
+                logging.info("Summarizing")
                 summary = get_deepgram_summary(deepgram_data=deepgram_data)
         if not deepgram:
             result = process_mp3(abs_path[:-4] + ".mp3", model)
         created_files.append(abs_path[:-4] + ".mp3")
         if chapters and len(chapters) > 0:
-            print("Chapters detected")
+            logging.info("Chapters detected")
             write_chapters_file(abs_path[:-4] + '.chapters', chapters)
             created_files.append(abs_path[:-4] + '.chapters')
             if deepgram:
                 if diarize:
-                    result = combine_deepgram_chapters_with_diarization(deepgram_data=deepgram_data, chapters=chapters)
+                    result = combine_deepgram_chapters_with_diarization(
+                        deepgram_data=deepgram_data, chapters=chapters)
                 else:
-                    result = combine_deepgram_with_chapters(deepgram_data=deepgram_data, chapters=chapters)
+                    result = combine_deepgram_with_chapters(
+                        deepgram_data=deepgram_data, chapters=chapters)
             else:
                 result = combine_chapter(chapters=chapters, transcript=result)
             if not local:
@@ -629,24 +668,31 @@ def process_video(video, title, event_date, tags, category, speakers, loc, model
                 result = ""
         if not title:
             title = filename[:-4]
-        print("Creating markdown file")
-        absolute_path = get_md_file_path(result=result, loc=loc, video=video, title=title, event_date=event_date,
-                                         tags=tags, summary=summary, category=category, speakers=speakers,
-                                         username=username, video_title=filename[:-4], local=local, pr=pr, test=test)
+        logging.info("Creating markdown file")
+        absolute_path = get_md_file_path(result=result, loc=loc, video=video,
+                                         title=title, event_date=event_date,
+                                         tags=tags, summary=summary,
+                                         category=category, speakers=speakers,
+                                         username=username,
+                                         video_title=filename[:-4], local=local,
+                                         pr=pr, test=test)
         created_files.append("tmp/" + filename[:-4] + '.description')
         if not test:
             if pr:
-                create_pr(absolute_path=absolute_path, loc=loc, username=username, curr_time=curr_time, title=title)
+                create_pr(absolute_path=absolute_path, loc=loc,
+                          username=username, curr_time=curr_time, title=title)
             else:
                 created_files.append(absolute_path)
         return absolute_path
     except Exception as e:
-        print("Error processing video")
-        print(e)
+        logging.error("Error processing video")
+        logging.error(e)
 
 
-def process_source(source, title, event_date, tags, category, speakers, loc, model, username, source_type,
-                   created_files, chapters, local=False, test=None, pr=False, deepgram=False, summarize=False,
+def process_source(source, title, event_date, tags, category, speakers, loc,
+                   model, username, source_type,
+                   created_files, chapters, local=False, test=None, pr=False,
+                   deepgram=False, summarize=False,
                    diarize=False):
     try:
         if not os.path.isdir("tmp"):
@@ -656,34 +702,57 @@ def process_source(source, title, event_date, tags, category, speakers, loc, mod
             os.mkdir("tmp")
 
         if source_type == 'audio':
-            filename = process_audio(source=source, title=title, event_date=event_date, tags=tags, category=category,
-                                     speakers=speakers, loc=loc, model=model, username=username, summarize=summarize,
-                                     local=local, created_files=created_files, test=test, pr=pr, deepgram=deepgram,
+            filename = process_audio(source=source, title=title,
+                                     event_date=event_date, tags=tags,
+                                     category=category,
+                                     speakers=speakers, loc=loc, model=model,
+                                     username=username, summarize=summarize,
+                                     local=local, created_files=created_files,
+                                     test=test, pr=pr, deepgram=deepgram,
                                      diarize=diarize)
         elif source_type == 'audio-local':
-            filename = process_audio(source=source, title=title, event_date=event_date, tags=tags, category=category,
-                                     speakers=speakers, loc=loc, model=model, username=username, summarize=summarize,
-                                     local=True, created_files=created_files, test=test, pr=pr, deepgram=deepgram,
+            filename = process_audio(source=source, title=title,
+                                     event_date=event_date, tags=tags,
+                                     category=category,
+                                     speakers=speakers, loc=loc, model=model,
+                                     username=username, summarize=summarize,
+                                     local=True, created_files=created_files,
+                                     test=test, pr=pr, deepgram=deepgram,
                                      diarize=diarize)
         elif source_type == 'playlist':
-            filename = process_videos(source=source, title=title, event_date=event_date, tags=tags, category=category,
-                                      speakers=speakers, loc=loc, model=model, username=username, summarize=summarize,
-                                      created_files=created_files, chapters=chapters, pr=pr, deepgram=deepgram,
+            filename = process_videos(source=source, title=title,
+                                      event_date=event_date, tags=tags,
+                                      category=category,
+                                      speakers=speakers, loc=loc, model=model,
+                                      username=username, summarize=summarize,
+                                      created_files=created_files,
+                                      chapters=chapters, pr=pr,
+                                      deepgram=deepgram,
                                       diarize=diarize)
         elif source_type == 'video-local':
-            filename = process_video(video=source, title=title, event_date=event_date, summarize=summarize,
-                                     tags=tags, category=category, speakers=speakers, loc=loc, model=model,
-                                     username=username, created_files=created_files, local=True, diarize=diarize,
-                                     chapters=chapters, test=test, pr=pr, deepgram=deepgram)
+            filename = process_video(video=source, title=title,
+                                     event_date=event_date, summarize=summarize,
+                                     tags=tags, category=category,
+                                     speakers=speakers, loc=loc, model=model,
+                                     username=username,
+                                     created_files=created_files, local=True,
+                                     diarize=diarize,
+                                     chapters=chapters, test=test, pr=pr,
+                                     deepgram=deepgram)
         else:
-            filename = process_video(video=source, title=title, event_date=event_date, summarize=summarize,
-                                     tags=tags, category=category, speakers=speakers, loc=loc, model=model,
-                                     username=username, created_files=created_files, local=local, diarize=diarize,
-                                     chapters=chapters, test=test, pr=pr, deepgram=deepgram)
+            filename = process_video(video=source, title=title,
+                                     event_date=event_date, summarize=summarize,
+                                     tags=tags, category=category,
+                                     speakers=speakers, loc=loc, model=model,
+                                     username=username,
+                                     created_files=created_files, local=local,
+                                     diarize=diarize,
+                                     chapters=chapters, test=test, pr=pr,
+                                     deepgram=deepgram)
         return filename
     except Exception as e:
-        print("Error processing source")
-        print(e)
+        logging.error("Error processing source")
+        logging.error(e)
 
 
 def get_date(url):
@@ -698,7 +767,8 @@ def clean_up(created_files):
     shutil.rmtree("tmp")
 
 
-def generate_payload(loc, title, event_date, tags, category, speakers, username, media, transcript, test):
+def generate_payload(loc, title, event_date, tags, category, speakers, username,
+                     media, transcript, test):
     try:
         event_date = event_date if event_date is None else event_date if type(
             event_date) is str else event_date.strftime('%Y-%m-%d')
@@ -721,7 +791,7 @@ def generate_payload(loc, title, event_date, tags, category, speakers, username,
             url = config['QUEUE_ENDPOINT'] + "/api/transcripts"
             resp = requests.post(url, json=content)
             if resp.status_code == 200:
-                print("Transcript added to queue")
+                logging.info("Transcript added to queue")
             return resp
     except Exception as e:
-        print(e)
+        logging.error(e)
