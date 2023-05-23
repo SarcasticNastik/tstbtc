@@ -1,12 +1,15 @@
-from app import application
+import json
 import os
-import pytest
 import re
 from datetime import datetime
-import json
+
+import pytest
+
+from app import application
 
 
-def check_md_file(path, transcript_by, media, title=None, date=None, tags=None, category=None, speakers=None,
+def check_md_file(path, transcript_by, media, title=None, date=None, tags=None,
+                  category=None, speakers=None,
                   chapters=None, local=False):
     is_correct = True
     if not path:
@@ -32,7 +35,8 @@ def check_md_file(path, transcript_by, media, title=None, date=None, tags=None, 
         if x.startswith('##'):
             detected_chapters.append(x[3:].strip())
 
-    is_correct &= fields["transcript_by"] == f'{transcript_by} via TBTBTC v{application.__version__}'
+    is_correct &= fields[
+                      "transcript_by"] == f'{transcript_by} via TBTBTC v{application.__version__}'
     if not is_correct:
         print("Error:", fields["transcript_by"])
     if not local:
@@ -80,12 +84,17 @@ def test_video_with_title():
     category = None
     date = None
     created_files = []
-    filename = application.process_source(source=source, title=title, event_date=date, tags=tags, category=category,
-                                          speakers=speakers, loc="yada/yada", model="tiny", username=username,
+    filename = application.process_source(source=source, title=title,
+                                          event_date=date, tags=tags,
+                                          category=category,
+                                          speakers=speakers, loc="yada/yada",
+                                          model="tiny", username=username,
                                           source_type="video", local=True,
-                                          created_files=created_files, test=result, chapters=False)
+                                          created_files=created_files,
+                                          test=result, chapters=False)
     assert os.path.isfile(filename)
-    assert check_md_file(path=filename, transcript_by=username, media=source, title=title,
+    assert check_md_file(path=filename, transcript_by=username, media=source,
+                         title=title,
                          date=date, tags=tags,
                          category=category, speakers=speakers, local=True)
     created_files.append('test_video.md')
@@ -106,17 +115,22 @@ def test_video_with_all_options():
     date = "2020-01-31"
     date = datetime.strptime(date, '%Y-%m-%d').date()
     created_files = []
-    filename = application.process_source(source=source, title=title, event_date=date, tags=tags, category=category,
-                                          speakers=speakers, loc="yada/yada", model="tiny", username=username,
+    filename = application.process_source(source=source, title=title,
+                                          event_date=date, tags=tags,
+                                          category=category,
+                                          speakers=speakers, loc="yada/yada",
+                                          model="tiny", username=username,
                                           source_type="video", local=True,
-                                          created_files=created_files, test=True, chapters=False)
+                                          created_files=created_files,
+                                          test=True, chapters=False)
     assert os.path.isfile(filename)
     category = [cat.strip() for cat in category.split(",")]
     tags = [tag.strip() for tag in tags.split(",")]
     speakers = [speaker.strip() for speaker in speakers.split(",")]
     date = date.strftime('%Y-%m-%d')
 
-    assert check_md_file(path=filename, transcript_by=username, media=source, title=title, date=date, tags=tags,
+    assert check_md_file(path=filename, transcript_by=username, media=source,
+                         title=title, date=date, tags=tags,
                          category=category, speakers=speakers, local=True)
     created_files.append('test_video.md')
     application.clean_up(created_files)
@@ -136,10 +150,14 @@ def test_video_with_chapters():
     date = "2020-01-31"
     date = datetime.strptime(date, '%Y-%m-%d').date()
     created_files = []
-    filename = application.process_source(source=source, title=title, event_date=date, tags=tags, category=category,
-                                          speakers=speakers, loc="yada/yada", model="tiny", username=username,
+    filename = application.process_source(source=source, title=title,
+                                          event_date=date, tags=tags,
+                                          category=category,
+                                          speakers=speakers, loc="yada/yada",
+                                          model="tiny", username=username,
                                           source_type="video", local=True,
-                                          created_files=created_files, test=result, chapters=True, pr=True)
+                                          created_files=created_files,
+                                          test=result, chapters=True, pr=True)
     chapter_names = []
     with open("test/testAssets/test_video_chapters.chapters", "r") as file:
         result = file.read()
@@ -154,8 +172,10 @@ def test_video_with_chapters():
     tags = [tag.strip() for tag in tags.split(",")]
     speakers = [speaker.strip() for speaker in speakers.split(",")]
     date = date.strftime('%Y-%m-%d')
-    assert check_md_file(path=filename, transcript_by=username, media=source, title=title, date=date, tags=tags,
-                         category=category, speakers=speakers, chapters=chapter_names, local=True)
+    assert check_md_file(path=filename, transcript_by=username, media=source,
+                         title=title, date=date, tags=tags,
+                         category=category, speakers=speakers,
+                         chapters=chapter_names, local=True)
     created_files.append('test_video.md')
     created_files.append("test/testAssets/test_video.chapters")
     application.clean_up(created_files)
@@ -168,12 +188,15 @@ def test_generate_payload():
     with open("test/testAssets/transcript.txt", "r") as file:
         transcript = file.read()
         file.close()
-    payload = application.generate_payload(loc="yada/yada", title="test_title", event_date=date, tags="tag1, tag2", test=True,
-                                           category="category1, category2", speakers="speaker1, speaker2",
-                                           username="username", media="test/testAssets/test_video.mp4",
+    payload = application.generate_payload(loc="yada/yada", title="test_title",
+                                           event_date=date, tags="tag1, tag2",
+                                           test=True,
+                                           category="category1, category2",
+                                           speakers="speaker1, speaker2",
+                                           username="username",
+                                           media="test/testAssets/test_video.mp4",
                                            transcript=transcript)
     with open('test/testAssets/payload.json', 'r') as outfile:
         content = json.load(outfile)
         outfile.close()
     assert payload == content
-

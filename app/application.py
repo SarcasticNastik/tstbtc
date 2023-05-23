@@ -1,23 +1,25 @@
 """This module provides the transcript cli."""
 import json
+import logging
+import mimetypes
+import os
+import re
 import shutil
 import subprocess
-from clint.textui import progress
-import pytube
-from moviepy.editor import VideoFileClip
-import whisper
-import os
-import static_ffmpeg
-from app import __version__
-import requests
-import re
-from urllib.parse import urlparse, parse_qs
 import time
-from dotenv import dotenv_values
+from urllib.parse import urlparse, parse_qs
+
+import pytube
+import requests
+import static_ffmpeg
+import whisper
 import yt_dlp
+from clint.textui import progress
 from deepgram import Deepgram
-import mimetypes
-import logging
+from dotenv import dotenv_values
+from moviepy.editor import VideoFileClip
+
+from app import __version__
 
 
 def download_video(url):
@@ -289,7 +291,8 @@ def get_deepgram_transcript(deepgram_data, diarize):
 
 def get_deepgram_summary(deepgram_data):
     try:
-        summaries = deepgram_data["results"]["channels"][0]["alternatives"][0]["summaries"]
+        summaries = deepgram_data["results"]["channels"][0]["alternatives"][0][
+            "summaries"]
         summary = ""
         for x in summaries:
             summary = summary + " " + x["summary"]
