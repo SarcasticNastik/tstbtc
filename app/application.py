@@ -23,7 +23,7 @@ from moviepy.editor import VideoFileClip
 from app import __version__
 
 
-def download_video(url):
+def download_video(url):  # FIXME:- The path convention
     try:
         logging.info("URL: " + url)
         logging.info("Downloading video... Please wait.")
@@ -51,7 +51,7 @@ def download_video(url):
         return
 
 
-def read_description(prefix):
+def read_description(prefix):  # FIXME:- The path convention
     try:
         list_of_chapters = []
         with open(prefix + 'videoFile.info.json', 'r') as f:
@@ -100,10 +100,12 @@ def convert_video_to_mp3(filename):
     return filename
 
 
-def convert_wav_to_mp3(abs_path, filename):
-    """FIXME:- Output this in `tmp_dir`"""
-    subprocess.call(['ffmpeg', '-i', abs_path, abs_path[:-4] + ".mp3"])
-    return filename[:-4] + ".mp3"
+def convert_wav_to_mp3(abs_path, filename, working_dir="tmp/"):
+    op = subprocess.run(['ffmpeg', '-i', abs_path, filename[:-4] + ".mp3"],
+                        cwd=working_dir, capture_output=True, text=True)
+    logging.info(op.stdout)
+    logging.error(op.stderr)
+    return os.path.abspath(os.path.join(working_dir, filename[:-4] + ".mp3"))
 
 
 def check_if_playlist(media):
@@ -141,12 +143,13 @@ def get_playlist_videos(url):
         return
 
 
-def get_audio_file(url, title):
+def get_audio_file(url, title, working_dir="tmp/"):
     logging.info("URL: " + url)
     logging.info("downloading audio file")
     try:
         audio = requests.get(url, stream=True)
-        with open("tmp/" + title + ".mp3", "wb") as f:
+        with open(os.path.join(working_dir, title + ".mp3"),
+                  "wb") as f:  # TODO:- Change the download path for song here
             total_length = int(audio.headers.get('content-length'))
             for chunk in progress.bar(audio.iter_content(chunk_size=1024),
                                       expected_size=(total_length / 1024) + 1):
@@ -351,7 +354,7 @@ def initialize():
 
 def write_to_file(result, loc, url, title, date, tags, category, speakers,
                   video_title, username, local, test, pr,
-                  summary):
+                  summary, working_dir="tmp/"):
     try:
         transcribed_text = result
         if title:
@@ -385,7 +388,7 @@ def write_to_file(result, loc, url, title, date, tags, category, speakers,
             meta_data += f'summary: {summary}\n'
 
         file_name = video_title.replace(' ', '-')
-        file_name_with_ext = "tmp/" + file_name + '.md'
+        file_name_with_ext = os.path.join(working_dir, file_name + '.md')
 
         if date:
             meta_data += f'date: {date}\n'
@@ -403,7 +406,7 @@ def write_to_file(result, loc, url, title, date, tags, category, speakers,
                              transcript=transcribed_text, media=url, tags=tags,
                              category=category, speakers=speakers,
                              username=username, event_date=date, test=test)
-        return file_name_with_ext
+        return os.path.abspath(file_name_with_ext)
     except Exception as e:
         logging.error("Error writing to file")
         logging.error(e)
@@ -411,14 +414,15 @@ def write_to_file(result, loc, url, title, date, tags, category, speakers,
 
 def get_md_file_path(result, loc, video, title, event_date, tags, category,
                      speakers, username, local, video_title,
-                     test, pr, summary=""):
+                     test, pr, summary="", working_dir="tmp/"):
     try:
         logging.info("writing .md file")
         file_name_with_ext = write_to_file(result, loc, video, title,
                                            event_date, tags, category, speakers,
                                            video_title,
                                            username, local, test, pr,
-                                           summary)  # TODO:- this is stored in `tmp_dir`
+                                           summary,
+                                           working_dir=working_dir)  # TODO:- this is stored in `tmp_dir`
         logging.info("wrote .md file")
 
         absolute_path = os.path.abspath(file_name_with_ext)
@@ -474,7 +478,8 @@ def check_source_type(source):
 
 def process_audio(source, title, event_date, tags, category, speakers, loc,
                   model, username, local,
-                  created_files, test, pr, deepgram, summarize, diarize):
+                  created_files, test, pr, deepgram, summarize, diarize,
+                  working_dir="tmp/"):
     try:
         logging.info("audio file detected")
         curr_time = str(round(time.time() * 1000))
@@ -487,14 +492,15 @@ def process_audio(source, title, event_date, tags, category, speakers, loc,
         summary = None
         result = None
         if not local:
-            filename = get_audio_file(url=source, title=title)
-            abs_path = os.path.abspath(path="tmp/" + filename)
+            filename = get_audio_file(url=source, title=title,
+                                      working_dir=working_dir)
+            abs_path = os.path.abspath(path=os.path.join(working_dir, filename))
             logging.info("filename", filename)
             logging.info("abs_path", abs_path)
-            created_files.append(abs_path)  # TODO:- Already in `tmp_dir`
+            # created_files.append(abs_path)  # TODO:- Already in `tmp_dir`
         else:
             filename = source.split("/")[-1]
-            abs_path = source
+            abs_path = os.path.abspath(source)
         logging.info("processing audio file", abs_path)
         if filename is None:
             logging.info("File not found")
@@ -502,8 +508,9 @@ def process_audio(source, title, event_date, tags, category, speakers, loc,
         if filename.endswith('wav'):
             initialize()
             abs_path = convert_wav_to_mp3(abs_path=abs_path,
-                                          filename=filename)  # FIXME;- Create this in tmp_dir
-            created_files.append(abs_path)  # TODO: REdact
+                                          filename=filename,
+                                          working_dir=working_dir)
+            # created_files.append(abs_path)
         if test:
             result = test
         else:
@@ -524,15 +531,16 @@ def process_audio(source, title, event_date, tags, category, speakers, loc,
                                          speakers=speakers, username=username,
                                          local=local, video_title=filename[:-4],
                                          test=test, pr=pr,
-                                         summary=summary)  # FIXME:- in tmp_dir
+                                         summary=summary,
+                                         working_dir=working_dir)  # FIXME:- in tmp_dir
 
-        created_files.append(absolute_path)  # TODO;- no need
+        # created_files.append(absolute_path)  # TODO;- no need
         if pr:
             create_pr(absolute_path=absolute_path, loc=loc, username=username,
                       curr_time=curr_time, title=title)
-        else:
-            created_files.append(
-                absolute_path)  # TODO:- No need, already delete hoga
+        # else:
+        #     created_files.append(
+        #         absolute_path)  # TODO:- No need, already delete hoga
         return absolute_path
     except Exception as e:
         logging.error("Error processing audio file")
@@ -711,6 +719,7 @@ def process_source(source, title, event_date, tags, category, speakers, loc,
                    local=False, test=None, pr=False, deepgram=False,
                    summarize=False, diarize=False):
     tmp_dir = tempfile.mkdtemp()
+
     try:
         if source_type == 'audio':
             filename = process_audio(source=source, title=title,
@@ -720,7 +729,7 @@ def process_source(source, title, event_date, tags, category, speakers, loc,
                                      username=username, summarize=summarize,
                                      local=local, created_files=created_files,
                                      test=test, pr=pr, deepgram=deepgram,
-                                     diarize=diarize)
+                                     diarize=diarize, working_dir=tmp_dir)
         elif source_type == 'audio-local':
             filename = process_audio(source=source, title=title,
                                      event_date=event_date, tags=tags,
@@ -729,7 +738,7 @@ def process_source(source, title, event_date, tags, category, speakers, loc,
                                      username=username, summarize=summarize,
                                      local=True, created_files=created_files,
                                      test=test, pr=pr, deepgram=deepgram,
-                                     diarize=diarize)
+                                     diarize=diarize, working_dir=tmp_dir)
         elif source_type == 'playlist':
             filename = process_videos(source=source, title=title,
                                       event_date=event_date, tags=tags,
@@ -760,13 +769,13 @@ def process_source(source, title, event_date, tags, category, speakers, loc,
                                      diarize=diarize,
                                      chapters=chapters, test=test, pr=pr,
                                      deepgram=deepgram)
-        return filename
+        return filename, tmp_dir
     except Exception as e:
         logging.error("Error processing source")
         logging.error(e)
-    finally:
-        shutil.rmtree(tmp_dir)
-        logging.info(f"Emptying runtime directory")
+    # finally:
+    #     shutil.rmtree(tmp_dir)
+    #     logging.info(f"Emptying runtime directory")
 
 
 def get_date(url):
@@ -774,14 +783,13 @@ def get_date(url):
     return str(video.publish_date).split(" ")[0]
 
 
-def clean_up(created_files):
+def clean_up(created_files, tmp_dir):
     """FIXME:- Do I need to take care of this? Any temporary files created
     are required to be deleted already. """
-    """TODO:- Whytf is this required?"""
     for file in created_files:
         if os.path.isfile(file):
             os.remove(file)
-    shutil.rmtree("tmp")
+    shutil.rmtree(tmp_dir)
 
 
 def generate_payload(loc, title, event_date, tags, category, speakers, username,

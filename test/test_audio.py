@@ -52,18 +52,23 @@ def test_audio_with_title():
     title = "title"
     username = "username"
     created_files = []
-    filename = application.process_source(source=source, title=title,
-                                          event_date=None, tags=None,
-                                          category=None,
-                                          speakers=None, loc="yada/yada",
-                                          model="tiny", username=username,
-                                          source_type="audio", local=True,
-                                          test=result, chapters=False, pr=False,
-                                          created_files=created_files)
+    filename, tmp_dir = application.process_source(source=source, title=title,
+                                                   event_date=None, tags=None,
+                                                   category=None,
+                                                   speakers=None,
+                                                   loc="yada/yada",
+                                                   model="tiny",
+                                                   username=username,
+                                                   source_type="audio",
+                                                   local=True,
+                                                   test=result, chapters=False,
+                                                   pr=False,
+                                                   created_files=created_files)
+    filename = os.path.join(tmp_dir, filename)
     assert os.path.isfile(filename)
     assert check_md_file(path=filename, transcript_by=username, media=source,
                          title=title, local=True)
-    application.clean_up(created_files)
+    application.clean_up(created_files, tmp_dir)
 
 
 @pytest.mark.feature
@@ -76,20 +81,23 @@ def test_audio_without_title():
     username = "username"
     created_files = []
     title = None
-    filename = application.process_source(source=source, title=title,
-                                          event_date=None, tags=None,
-                                          category=None,
-                                          speakers=None, loc="yada/yada",
-                                          model="tiny", username=username,
-                                          pr=False,
-                                          source_type="audio", local=True,
-                                          created_files=created_files,
-                                          test=result,
-                                          chapters=False)
+    filename, tmp_dir = application.process_source(source=source, title=title,
+                                                   event_date=None, tags=None,
+                                                   category=None,
+                                                   speakers=None,
+                                                   loc="yada/yada",
+                                                   model="tiny",
+                                                   username=username,
+                                                   pr=False,
+                                                   source_type="audio",
+                                                   local=True,
+                                                   created_files=created_files,
+                                                   test=result,
+                                                   chapters=False)
     assert filename is None
     assert not check_md_file(path=filename, transcript_by=username,
                              media=source, title=title)
-    application.clean_up(created_files)
+    application.clean_up(created_files, tmp_dir)
 
 
 @pytest.mark.feature
@@ -106,20 +114,25 @@ def test_audio_with_all_data():
     date = "2020-01-31"
     date = datetime.strptime(date, '%Y-%m-%d').date()
     created_files = []
-    filename = application.process_source(source=source, title=title,
-                                          event_date=date, tags=tags,
-                                          category=category,
-                                          speakers=speakers, loc="yada/yada",
-                                          model="tiny", username=username,
-                                          source_type="audio", local=True,
-                                          test=result, chapters=False,
-                                          created_files=created_files, pr=False)
+    filename, tmp_dir = application.process_source(source=source, title=title,
+                                                   event_date=date, tags=tags,
+                                                   category=category,
+                                                   speakers=speakers,
+                                                   loc="yada/yada",
+                                                   model="tiny",
+                                                   username=username,
+                                                   source_type="audio",
+                                                   local=True,
+                                                   test=result, chapters=False,
+                                                   created_files=created_files,
+                                                   pr=False)
     category = [cat.strip() for cat in category.split(",")]
     tags = [tag.strip() for tag in tags.split(",")]
     speakers = [speaker.strip() for speaker in speakers.split(",")]
     date = date.strftime('%Y-%m-%d')
+    filename = os.path.join(tmp_dir, filename)
     assert os.path.isfile(filename)
     assert check_md_file(path=filename, transcript_by=username, media=source,
                          title=title, date=date, tags=tags,
                          category=category, speakers=speakers, local=True)
-    application.clean_up(created_files)
+    application.clean_up(created_files, tmp_dir)
