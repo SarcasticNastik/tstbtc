@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 import time
 from urllib.parse import urlparse, parse_qs
 
@@ -89,7 +90,8 @@ def convert_video_to_mp3(filename):
         clip = VideoFileClip(filename)
         logging.info("Converting video to mp3... Please wait.")
         logging.info(filename[:-4] + ".mp3")
-        clip.audio.write_audiofile(filename[:-4] + ".mp3")
+        clip.audio.write_audiofile(
+            filename[:-4] + ".mp3")  # FIXME:- Write this in tmp_dir
         clip.close()
         logging.info("Converted video to mp3")
     except:
@@ -99,6 +101,7 @@ def convert_video_to_mp3(filename):
 
 
 def convert_wav_to_mp3(abs_path, filename):
+    """FIXME:- Output this in `tmp_dir`"""
     subprocess.call(['ffmpeg', '-i', abs_path, abs_path[:-4] + ".mp3"])
     return filename[:-4] + ".mp3"
 
@@ -414,7 +417,8 @@ def get_md_file_path(result, loc, video, title, event_date, tags, category,
         file_name_with_ext = write_to_file(result, loc, video, title,
                                            event_date, tags, category, speakers,
                                            video_title,
-                                           username, local, test, pr, summary)
+                                           username, local, test, pr,
+                                           summary)  # TODO:- this is stored in `tmp_dir`
         logging.info("wrote .md file")
 
         absolute_path = os.path.abspath(file_name_with_ext)
@@ -487,7 +491,7 @@ def process_audio(source, title, event_date, tags, category, speakers, loc,
             abs_path = os.path.abspath(path="tmp/" + filename)
             logging.info("filename", filename)
             logging.info("abs_path", abs_path)
-            created_files.append(abs_path)
+            created_files.append(abs_path)  # TODO:- Already in `tmp_dir`
         else:
             filename = source.split("/")[-1]
             abs_path = source
@@ -497,8 +501,9 @@ def process_audio(source, title, event_date, tags, category, speakers, loc,
             return
         if filename.endswith('wav'):
             initialize()
-            abs_path = convert_wav_to_mp3(abs_path=abs_path, filename=filename)
-            created_files.append(abs_path)
+            abs_path = convert_wav_to_mp3(abs_path=abs_path,
+                                          filename=filename)  # FIXME;- Create this in tmp_dir
+            created_files.append(abs_path)  # TODO: REdact
         if test:
             result = test
         else:
@@ -518,14 +523,16 @@ def process_audio(source, title, event_date, tags, category, speakers, loc,
                                          tags=tags, category=category,
                                          speakers=speakers, username=username,
                                          local=local, video_title=filename[:-4],
-                                         test=test, pr=pr, summary=summary)
+                                         test=test, pr=pr,
+                                         summary=summary)  # FIXME:- in tmp_dir
 
-        created_files.append(absolute_path)
+        created_files.append(absolute_path)  # TODO;- no need
         if pr:
             create_pr(absolute_path=absolute_path, loc=loc, username=username,
                       curr_time=curr_time, title=title)
         else:
-            created_files.append(absolute_path)
+            created_files.append(
+                absolute_path)  # TODO:- No need, already delete hoga
         return absolute_path
     except Exception as e:
         logging.error("Error processing audio file")
@@ -616,11 +623,12 @@ def process_video(video, title, event_date, tags, category, speakers, loc,
             logging.info("Transcribing video: " + video)
             if event_date is None:
                 event_date = get_date(video)
-            abs_path = download_video(url=video)
+            abs_path = download_video(
+                url=video)  # FIXME:- `tmp_dir` mein sab save hota hai
             if abs_path is None:
                 logging.info("File not found")
                 return None
-            created_files.append(abs_path)
+            created_files.append(abs_path)  # TODO:- No need
             filename = abs_path.split("/")[-1]
         else:
             filename = video.split("/")[-1]
@@ -632,12 +640,14 @@ def process_video(video, title, event_date, tags, category, speakers, loc,
         result = ""
         deepgram_data = None
         if chapters and not test:
-            chapters = read_description("tmp/")
+            chapters = read_description("tmp/")  # FIXME:- tmp_dir
         elif test:
             chapters = read_description("test/testAssets/")
-        convert_video_to_mp3(abs_path[:-4] + '.mp4')
+        convert_video_to_mp3(
+            abs_path[:-4] + '.mp4')  # FIXME:- Change the function
         if deepgram or summarize:
             deepgram_data = process_mp3_deepgram(abs_path[:-4] + ".mp3",
+                                                 # FIXME:- the path
                                                  summarize=summarize,
                                                  diarize=diarize)
             result = get_deepgram_transcript(deepgram_data=deepgram_data,
@@ -646,11 +656,13 @@ def process_video(video, title, event_date, tags, category, speakers, loc,
                 logging.info("Summarizing")
                 summary = get_deepgram_summary(deepgram_data=deepgram_data)
         if not deepgram:
-            result = process_mp3(abs_path[:-4] + ".mp3", model)
-        created_files.append(abs_path[:-4] + ".mp3")
+            result = process_mp3(abs_path[:-4] + ".mp3",
+                                 model)  # FIXME:- The path
+        created_files.append(abs_path[:-4] + ".mp3")  # FIXME:- No need
         if chapters and len(chapters) > 0:
             logging.info("Chapters detected")
-            write_chapters_file(abs_path[:-4] + '.chapters', chapters)
+            write_chapters_file(abs_path[:-4] + '.chapters',
+                                chapters)  # FIXME:- The path to tmp_dir
             created_files.append(abs_path[:-4] + '.chapters')
             if deepgram:
                 if diarize:
@@ -661,9 +673,10 @@ def process_video(video, title, event_date, tags, category, speakers, loc,
                         deepgram_data=deepgram_data, chapters=chapters)
             else:
                 result = combine_chapter(chapters=chapters, transcript=result)
-            if not local:
+            if not local:  # FIXME:- Is this required now?
                 created_files.append(abs_path)
-            created_files.append("tmp/" + filename[:-4] + '.chapters')
+            created_files.append("tmp/" + filename[
+                                          :-4] + '.chapters')  # FIXME:- Absolutely no need
         else:
             if not test and not deepgram:
                 result = create_transcript(result)
@@ -678,14 +691,15 @@ def process_video(video, title, event_date, tags, category, speakers, loc,
                                          category=category, speakers=speakers,
                                          username=username,
                                          video_title=filename[:-4], local=local,
-                                         pr=pr, test=test)
-        created_files.append("tmp/" + filename[:-4] + '.description')
+                                         pr=pr, test=test)  # FIXME:- in tmp_dir
+        created_files.append(
+            "tmp/" + filename[:-4] + '.description')  # FIXME:- No need
         if not test:
             if pr:
                 create_pr(absolute_path=absolute_path, loc=loc,
                           username=username, curr_time=curr_time, title=title)
             else:
-                created_files.append(absolute_path)
+                created_files.append(absolute_path)  # FIXME:- No need
         return absolute_path
     except Exception as e:
         logging.error("Error processing video")
@@ -693,17 +707,11 @@ def process_video(video, title, event_date, tags, category, speakers, loc,
 
 
 def process_source(source, title, event_date, tags, category, speakers, loc,
-                   model, username, source_type,
-                   created_files, chapters, local=False, test=None, pr=False,
-                   deepgram=False, summarize=False,
-                   diarize=False):
+                   model, username, source_type, created_files, chapters,
+                   local=False, test=None, pr=False, deepgram=False,
+                   summarize=False, diarize=False):
+    tmp_dir = tempfile.mkdtemp()
     try:
-        if not os.path.isdir("tmp"):
-            os.mkdir("tmp")
-        else:
-            shutil.rmtree("tmp")
-            os.mkdir("tmp")
-
         if source_type == 'audio':
             filename = process_audio(source=source, title=title,
                                      event_date=event_date, tags=tags,
@@ -756,6 +764,9 @@ def process_source(source, title, event_date, tags, category, speakers, loc,
     except Exception as e:
         logging.error("Error processing source")
         logging.error(e)
+    finally:
+        shutil.rmtree(tmp_dir)
+        logging.info(f"Emptying runtime directory")
 
 
 def get_date(url):
@@ -764,6 +775,9 @@ def get_date(url):
 
 
 def clean_up(created_files):
+    """FIXME:- Do I need to take care of this? Any temporary files created
+    are required to be deleted already. """
+    """TODO:- Whytf is this required?"""
     for file in created_files:
         if os.path.isfile(file):
             os.remove(file)
