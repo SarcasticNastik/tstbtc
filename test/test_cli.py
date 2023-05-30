@@ -75,8 +75,9 @@ def test_download_video_file():
 
 @pytest.mark.main
 def test_convert_video_to_audio():
-    os.makedirs("tmp/")
+    if not os.path.isdir('tmp'):
+        os.mkdir('tmp')
     application.convert_video_to_mp3(rel_path("testAssets/test_video.mp4"))
-    assert os.path.isfile(rel_path("testAssets/test_video.mp3"))
-    os.remove(rel_path("testAssets/test_video.mp3"))
-    os.remove("tmp/")
+    assert os.path.isfile("tmp/test_video.mp3")
+    os.remove("tmp/test_video.mp3")
+    os.removedirs("tmp/")

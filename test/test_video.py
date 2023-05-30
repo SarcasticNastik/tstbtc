@@ -88,23 +88,25 @@ def test_video_with_title():
     category = None
     date = None
     created_files = []
-    filename = application.process_source(source=source, title=title,
-                                          event_date=date, tags=tags,
-                                          category=category,
-                                          speakers=speakers,
-                                          loc="yada/yada",
-                                          model="tiny", username=username,
-                                          source_type="video", local=True,
-                                          created_files=created_files,
-                                          test=result, chapters=False)
+    filename, tmp_dir = application.process_source(source=source, title=title,
+                                                   event_date=date, tags=tags,
+                                                   category=category,
+                                                   speakers=speakers,
+                                                   loc="yada/yada",
+                                                   model="tiny",
+                                                   username=username,
+                                                   source_type="video",
+                                                   local=True,
+                                                   created_files=created_files,
+                                                   test=result, chapters=False)
+    filename = os.path.join(tmp_dir, filename)
     assert os.path.isfile(filename)
     assert check_md_file(path=filename, transcript_by=username, media=source,
                          title=title,
                          date=date, tags=tags,
                          category=category, speakers=speakers, local=True)
-    created_files.append(
-        'test_video.md')
-    application.clean_up(created_files)
+    created_files.append(os.path.join(tmp_dir, 'test_video.md'))
+    application.clean_up(created_files, tmp_dir)
 
 
 @pytest.mark.feature
@@ -121,15 +123,18 @@ def test_video_with_all_options():
     date = "2020-01-31"
     date = datetime.strptime(date, '%Y-%m-%d').date()
     created_files = []
-    filename = application.process_source(source=source, title=title,
-                                          event_date=date, tags=tags,
-                                          category=category,
-                                          speakers=speakers,
-                                          loc="yada/yada",
-                                          model="tiny", username=username,
-                                          source_type="video", local=True,
-                                          created_files=created_files,
-                                          test=True, chapters=False)
+    filename, tmp_dir = application.process_source(source=source, title=title,
+                                                   event_date=date, tags=tags,
+                                                   category=category,
+                                                   speakers=speakers,
+                                                   loc="yada/yada",
+                                                   model="tiny",
+                                                   username=username,
+                                                   source_type="video",
+                                                   local=True,
+                                                   created_files=created_files,
+                                                   test=True, chapters=False)
+    filename = os.path.join(tmp_dir, filename)
     assert os.path.isfile(filename)
     category = [cat.strip() for cat in category.split(",")]
     tags = [tag.strip() for tag in tags.split(",")]
@@ -139,8 +144,8 @@ def test_video_with_all_options():
     assert check_md_file(path=filename, transcript_by=username, media=source,
                          title=title, date=date, tags=tags,
                          category=category, speakers=speakers, local=True)
-    created_files.append('test_video.md')
-    application.clean_up(created_files)
+    created_files.append(os.path.join(tmp_dir, 'test_video.md'))
+    application.clean_up(created_files, tmp_dir)
 
 
 @pytest.mark.feature
@@ -157,15 +162,18 @@ def test_video_with_chapters():
     date = "2020-01-31"
     date = datetime.strptime(date, '%Y-%m-%d').date()
     created_files = []
-    filename = application.process_source(source=source, title=title,
-                                          event_date=date, tags=tags,
-                                          category=category,
-                                          speakers=speakers,
-                                          loc="yada/yada",
-                                          model="tiny", username=username,
-                                          source_type="video", local=True,
-                                          created_files=created_files,
-                                          test=result, chapters=True, pr=True)
+    filename, tmp_dir = application.process_source(source=source, title=title,
+                                                   event_date=date, tags=tags,
+                                                   category=category,
+                                                   speakers=speakers,
+                                                   loc="yada/yada",
+                                                   model="tiny",
+                                                   username=username,
+                                                   source_type="video",
+                                                   local=True,
+                                                   created_files=created_files,
+                                                   test=result, chapters=True,
+                                                   pr=True)
     chapter_names = []
     with open(rel_path("testAssets/test_video_chapters.chapters"), "r") as file:
         result = file.read()
@@ -174,6 +182,7 @@ def test_video_with_chapters():
                 chapter_names.append(x.split("= ")[1].strip())
         file.close()
 
+    filename = os.path.join(tmp_dir, filename)
     print(filename)
     assert os.path.isfile(filename)
     category = [cat.strip() for cat in category.split(",")]
@@ -184,9 +193,9 @@ def test_video_with_chapters():
                          title=title, date=date, tags=tags,
                          category=category, speakers=speakers,
                          chapters=chapter_names, local=True)
-    created_files.append('test_video.md')
-    created_files.append(rel_path("testAssets/test_video.chapters"))
-    application.clean_up(created_files)
+    created_files.append(os.path.join(tmp_dir, 'test_video.md'))
+    created_files.append(os.path.join(tmp_dir, "test_video.chapters"))
+    application.clean_up(created_files, tmp_dir)
 
 
 @pytest.mark.feature
