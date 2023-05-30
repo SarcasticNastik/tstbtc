@@ -23,31 +23,32 @@ from moviepy.editor import VideoFileClip
 from app import __version__
 
 
-def download_video(url):  # FIXME:- The path convention
+def download_video(url, working_dir="tmp/"):
     try:
         logging.info("URL: " + url)
         logging.info("Downloading video... Please wait.")
 
         ydl_opts = {
             'format': '18',
-            'outtmpl': 'tmp/videoFile.%(ext)s',
+            'outtmpl': os.path.join(working_dir, 'videoFile.%(ext)s'),
             'nopart': True,
             'writeinfojson': True,
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ytdl:
             ytdl.download([url])
 
-        with open('tmp/videoFile.info.json') as file:
+        with open(os.path.join(working_dir, 'videoFile.info.json')) as file:
             info = ytdl.sanitize_info(json.load(file))
             name = info['title'].replace('/', '-')
             file.close()
 
-        os.rename("tmp/videoFile.mp4", "tmp/" + name + '.mp4')
+        os.rename(os.path.join(working_dir, "videoFile.mp4"),
+                  os.path.join(working_dir, name + '.mp4'))
 
-        return os.path.abspath("tmp/" + name + '.mp4')
+        return os.path.abspath(os.path.join(working_dir, name + '.mp4'))
     except Exception as e:
         logging.error("Error downloading video")
-        shutil.rmtree('tmp')
+        shutil.rmtree(working_dir)
         return
 
 
@@ -85,19 +86,19 @@ def write_chapters_file(chapter_file: str, chapter_list: list) -> None:
         logging.error(e)
 
 
-def convert_video_to_mp3(filename):
+def convert_video_to_mp3(filename, working_dir="tmp/"):
     try:
         clip = VideoFileClip(filename)
         logging.info("Converting video to mp3... Please wait.")
         logging.info(filename[:-4] + ".mp3")
         clip.audio.write_audiofile(
-            filename[:-4] + ".mp3")  # FIXME:- Write this in tmp_dir
+            os.path.join(working_dir, filename.split("/")[-1][:-4] + ".mp3"))
         clip.close()
         logging.info("Converted video to mp3")
+        return os.path.join(working_dir, filename.split("/")[-1][:-4] + ".mp3")
     except:
         logging.error("Error converting video to mp3")
         return None
-    return filename
 
 
 def convert_wav_to_mp3(abs_path, filename, working_dir="tmp/"):
@@ -187,7 +188,7 @@ def decimal_to_sexagesimal(dec):
     return f'{hrs:02d}:{minu:02d}:{sec:02d}'
 
 
-def combine_chapter(chapters, transcript):
+def combine_chapter(chapters, transcript, working_dir="tmp/"):
     try:
         chapters_pointer = 0
         transcript_pointer = 0
@@ -210,7 +211,7 @@ def combine_chapter(chapters, transcript):
             result = result + transcript[transcript_pointer][2]
             transcript_pointer += 1
 
-        with open("result.md", "w") as file:
+        with open(os.path.join(working_dir, "result.md"), "w") as file:
             file.write(result)
 
         return result
@@ -618,7 +619,7 @@ def combine_deepgram_with_chapters(deepgram_data, chapters):
 def process_video(video, title, event_date, tags, category, speakers, loc,
                   model, username, created_files,
                   chapters, test, pr, local=False, deepgram=False,
-                  summarize=False, diarize=False):
+                  summarize=False, diarize=False, working_dir="tmp/"):
     try:
         curr_time = str(round(time.time() * 1000))
         if not local:
@@ -632,46 +633,48 @@ def process_video(video, title, event_date, tags, category, speakers, loc,
             if event_date is None:
                 event_date = get_date(video)
             abs_path = download_video(
-                url=video)  # FIXME:- `tmp_dir` mein sab save hota hai
+                url=video,
+                working_dir=working_dir)  # FIXME:- `tmp_dir` mein sab save hota hai
             if abs_path is None:
                 logging.info("File not found")
                 return None
-            created_files.append(abs_path)  # TODO:- No need
+            # created_files.append(abs_path)  # TODO:- No need
             filename = abs_path.split("/")[-1]
         else:
             filename = video.split("/")[-1]
             logging.info("Transcribing video: " + filename)
-            abs_path = video
+            abs_path = os.path.abspath(video)
 
         initialize()
         summary = None
         result = ""
         deepgram_data = None
         if chapters and not test:
-            chapters = read_description("tmp/")  # FIXME:- tmp_dir
+            chapters = read_description(working_dir)
         elif test:
             chapters = read_description("test/testAssets/")
         convert_video_to_mp3(
-            abs_path[:-4] + '.mp4')  # FIXME:- Change the function
+            abs_path[:-4] + '.mp4', working_dir)  # FIXME:- Might have an error
         if deepgram or summarize:
-            deepgram_data = process_mp3_deepgram(abs_path[:-4] + ".mp3",
-                                                 # FIXME:- the path
-                                                 summarize=summarize,
-                                                 diarize=diarize)
+            deepgram_data = process_mp3_deepgram(
+                os.path.join(working_dir, abs_path[:-4] + ".mp3"),
+                summarize=summarize,
+                diarize=diarize)
             result = get_deepgram_transcript(deepgram_data=deepgram_data,
                                              diarize=diarize)
             if summarize:
                 logging.info("Summarizing")
                 summary = get_deepgram_summary(deepgram_data=deepgram_data)
         if not deepgram:
-            result = process_mp3(abs_path[:-4] + ".mp3",
-                                 model)  # FIXME:- The path
-        created_files.append(abs_path[:-4] + ".mp3")  # FIXME:- No need
+            result = process_mp3(
+                os.path.join(working_dir, abs_path[:-4] + ".mp3"), model)
+        # created_files.append(abs_path[:-4] + ".mp3")
         if chapters and len(chapters) > 0:
             logging.info("Chapters detected")
-            write_chapters_file(abs_path[:-4] + '.chapters',
-                                chapters)  # FIXME:- The path to tmp_dir
-            created_files.append(abs_path[:-4] + '.chapters')
+            write_chapters_file(
+                os.path.join(working_dir, filename[:-4] + '.chapters'),
+                chapters)  # FIXME:- Take care of a possible bug here
+            # created_files.append(abs_path[:-4] + '.chapters')
             if deepgram:
                 if diarize:
                     result = combine_deepgram_chapters_with_diarization(
@@ -680,11 +683,12 @@ def process_video(video, title, event_date, tags, category, speakers, loc,
                     result = combine_deepgram_with_chapters(
                         deepgram_data=deepgram_data, chapters=chapters)
             else:
-                result = combine_chapter(chapters=chapters, transcript=result)
-            if not local:  # FIXME:- Is this required now?
-                created_files.append(abs_path)
-            created_files.append("tmp/" + filename[
-                                          :-4] + '.chapters')  # FIXME:- Absolutely no need
+                result = combine_chapter(chapters=chapters, transcript=result,
+                                         working_dir=working_dir)
+            # if not local:  # FIXME:- Is this required now?
+            #     created_files.append(abs_path)
+            # created_files.append("tmp/" + filename[
+            #                               :-4] + '.chapters')
         else:
             if not test and not deepgram:
                 result = create_transcript(result)
@@ -699,15 +703,16 @@ def process_video(video, title, event_date, tags, category, speakers, loc,
                                          category=category, speakers=speakers,
                                          username=username,
                                          video_title=filename[:-4], local=local,
-                                         pr=pr, test=test)  # FIXME:- in tmp_dir
-        created_files.append(
-            "tmp/" + filename[:-4] + '.description')  # FIXME:- No need
+                                         pr=pr, test=test,
+                                         working_dir=working_dir)
+        # created_files.append(
+        #     "tmp/" + filename[:-4] + '.description')  # FIXME:- No need
         if not test:
             if pr:
                 create_pr(absolute_path=absolute_path, loc=loc,
                           username=username, curr_time=curr_time, title=title)
-            else:
-                created_files.append(absolute_path)  # FIXME:- No need
+            # else:
+            #     created_files.append(absolute_path)  # FIXME:- No need
         return absolute_path
     except Exception as e:
         logging.error("Error processing video")
@@ -748,7 +753,7 @@ def process_source(source, title, event_date, tags, category, speakers, loc,
                                       created_files=created_files,
                                       chapters=chapters, pr=pr,
                                       deepgram=deepgram,
-                                      diarize=diarize)
+                                      diarize=diarize, working_dir=tmp_dir)
         elif source_type == 'video-local':
             filename = process_video(video=source, title=title,
                                      event_date=event_date, summarize=summarize,
@@ -758,7 +763,7 @@ def process_source(source, title, event_date, tags, category, speakers, loc,
                                      created_files=created_files, local=True,
                                      diarize=diarize,
                                      chapters=chapters, test=test, pr=pr,
-                                     deepgram=deepgram)
+                                     deepgram=deepgram, working_dir=tmp_dir)
         else:
             filename = process_video(video=source, title=title,
                                      event_date=event_date, summarize=summarize,
@@ -768,7 +773,7 @@ def process_source(source, title, event_date, tags, category, speakers, loc,
                                      created_files=created_files, local=local,
                                      diarize=diarize,
                                      chapters=chapters, test=test, pr=pr,
-                                     deepgram=deepgram)
+                                     deepgram=deepgram, working_dir=tmp_dir)
         return filename, tmp_dir
     except Exception as e:
         logging.error("Error processing source")
